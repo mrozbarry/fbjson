@@ -1,0 +1,5 @@
+{"test1":true , "test2"     :false,"test3":true,
+	"test4" : true,
+	"sentence" : "the rain in spain falls mainly on the plain.  This here \" is an escaped quote!",
+	"array" : [0,1,2,3,4,5]
+}
