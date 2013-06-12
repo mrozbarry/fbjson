@@ -41,15 +41,19 @@ constructor UTF8Char()
 end constructor
 
 constructor UTF8Char(byref character as string)
+	bytes = NULL
+	length = 0
 	assign( cptr( ubyte ptr, strptr( character ) ) )
 end constructor
 
 constructor UTF8Char(byval rawUtf8 as ubyte ptr)
+	bytes = NULL
+	length = 0
 	assign( rawUtf8 )
 end constructor
 
 destructor UTF8Char()
-	if bytes <> NULL then deallocate bytes
+	if bytes <> NULL then deallocate( bytes )
 	bytes = NULL
 	length = 0
 end destructor
@@ -77,7 +81,7 @@ sub UTF8Char.assign(byval rawUtf8 as ubyte ptr)
 	elseif (firstByte And &b11110000) = &hf0 then
 		length = 4
 	end if
-	bytes = callocate(length, sizeof(ubyte))
+	bytes = callocate( length, sizeof(ubyte) )
 	for i as uinteger = 0 to length-1
 		bytes[i] = rawUtf8[i]
 	next
@@ -138,7 +142,7 @@ destructor UTF8String()
 		for i as uinteger = 0 to m_length-1
 			delete m_string[i]
 		next
-		deallocate m_string
+		deallocate( m_string )
 	end if
 	m_string = NULL
 	m_length = 0
@@ -693,7 +697,7 @@ function fbJSON_Tokenizer( byref jsonString as UTF8String, tokens() as fbJSONTok
 	do
 		var c = jsonString.mid( startToken, 1 )
 		tokenLen = 1
-		if ( instr( c, any chr(9)&chr(32) ) = 0 ) then '' Space or Tab
+		if ( c.instr_any( chr(9)&chr(32) ) = 0 ) then '' Space or Tab
 			dim index as integer
 			index = startToken + 1
 			if c = chr(34) then '' Quote
@@ -800,11 +804,13 @@ end function
 ''	Standard function implementations
 ''**********************************************************************
 function fbJSON_ImportFile( byref path as string, byval utf8 as ubyte ) as fbJSON ptr
-	dim as string dline, dstr
+	dim as UTF8String dstr
 	dim as integer fh=freefile()
 	if utf8 <> 0 then
 		dim as ubyte byteOrderMark(0 To 1, 0 To 2) = { { &h3f, &hbb, &hbf }, {0,0,0} }
 		open path for binary access read as #fh
+		
+		dim as uinteger fileLen = LOF(fh)
 		
 		for j as integer = 0 to 2
 			get #fh, , byteOrderMark(1, j)
@@ -819,13 +825,24 @@ function fbJSON_ImportFile( byref path as string, byval utf8 as ubyte ) as fbJSO
 		next i
 		if success = 0 then return NULL
 		
+		dim as ubyte ptr bytes = callocate( sizeof(ubyte), fileLen )
+		dim as uinteger bytesRead
+		get #fh, , *bytes, fileLen - 3, bytesRead
 		
+		dstr = type<UTF8String>( bytes, bytesRead )
+		
+		deallocate( bytes )
+		
+		? "Importing:"
+		? dstr.ascii()
 		
 	else
+		dim as string dline
 		open path for input as #fh
 		do until eof( fh )
 			line input #fh, dline
-			dstr &= dline & chr(10)
+			dstr.append( dline )
+			dstr.append( chr(10) )
 		loop
 	end if
 	close #fh
@@ -833,10 +850,12 @@ function fbJSON_ImportFile( byref path as string, byval utf8 as ubyte ) as fbJSO
 end function
 
 function fbJSON_ImportString( byref jsonString as UTF8String ) as fbJSON ptr
-	if len( trim( jsonString, any whitespace ) ) = 0 then return NULL
 	dim as fbJSON ptr current = NULL
 	redim as fbJSONToken tokens(0)
 	dim as integer arrayCount = 0, objectCount = 0
+	
+	? "Importing string:"
+	? jsonString.ascii()
 	
 	var num = fbJSON_Tokenizer( jsonString, tokens() )
 	if num < 1 then

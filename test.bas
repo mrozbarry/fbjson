@@ -65,6 +65,7 @@ Dim As String testStrings(1 To 3) = { _
 }
 
 For i As Integer = LBound(testStrings) to UBound(testStrings)
+	? testStrings(i)
 	Dim json As fbJSON ptr = fbJSON_ImportString( testStrings(i) )
 	Dim jsonString As UTF8String = fbJSON_ExportString( json, 0 )
 	dim success as ubyte = determine_success( "After parsing as JSON", testStrings(i), jsonString )
