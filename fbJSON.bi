@@ -136,6 +136,8 @@ public:
 	' Secondary constructor sets the name of the node
 	' Destructor cleans up children
 	declare constructor()
+	declare constructor( byref stringVal as UTF8String )
+	declare constructor( byval doubleVal as double )
 	''declare constructor( byref newName as string ) '' Todo: remove this as a contructor to name the node, and create a set of constructors
 	declare destructor()
 	

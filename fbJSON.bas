@@ -197,7 +197,7 @@ function UTF8String.mid(byval start as integer, byval len_ as integer) as UTF8St
 	
 	dim as uinteger s, f
 	s = determinePosition( start ) - 1
-	f = s + len_
+	f = s + len_ - 1
 	if ( len_ < 0 ) then f = cuint( s + (m_length + len_) + 1 )
 	
 	for i as uinteger = s to f
@@ -240,6 +240,16 @@ function UTF8String.instr(byref search as UTF8String, byval start as integer = 0
 		end if
 	next
 	return -1
+end function
+
+function UTF8String.instr_any(byref search as UTF8String, byval start as integer = 0) as integer
+	dim found as uinteger = -1
+	for i as uinteger = 0 to search.length()
+		dim s as UTF8String = type<UTF8String>( search.at(i).bytes, 1 )
+		dim p as uinteger = this.instr( s, start )
+		if (found = -1) or (p > found) then found = p
+	next
+	return found
 end function
 
 sub UTF8String.insert(byref text as UTF8String, byval pos as uinteger)
@@ -376,7 +386,7 @@ constructor fbJSON()
 	this.parent = NULL
 	this.firstChild = NULL
 	this.nextSibling = NULL
-	this.jType = JSON_False
+	this.jType = JSON_Null
 	this._jIdentifier = type<UTF8String>()
 	this._jData = type<UTF8String>()
 	this.jNum = 0.0
@@ -392,6 +402,28 @@ end constructor
 	this._jData = NULL
 	this.jNum = 0.0
 end constructor'/
+
+constructor fbJSON( byref stringVal as UTF8String )
+	this.parent = NULL
+	this.firstChild = NULL
+	this.nextSibling = NULL
+	this.jType = JSON_Null
+	this._jIdentifier = type<UTF8String>()
+	this._jData = type<UTF8String>()
+	this.jNum = 0.0
+	this.asString( stringVal )
+end constructor
+
+constructor fbJSON( byval doubleVal as double )
+	this.parent = NULL
+	this.firstChild = NULL
+	this.nextSibling = NULL
+	this.jType = JSON_Null
+	this._jIdentifier = type<UTF8String>()
+	this._jData = type<UTF8String>()
+	this.jNum = 0.0
+	this.asNumber( doubleVal )
+end constructor
 
 destructor fbJSON()
 	'print "*** Destruction fbJSON '" & this.toString() & "'0x" & hex( cint( @this ) ) & " ***"
@@ -703,7 +735,7 @@ function fbJSON_Print( byval n as fbJSON ptr, byval level as integer, byval useI
 	
 	select case n->getType()
 	case JSON_Object
-		if len( n->jName ) > 0 then result &= indent & chr(34) & n->jName & chr(34) & ":{" else result &= indent & "{"
+		if n->identifier.length() > 0 then result &= indent & chr(34) & n->identifier & chr(34) & ":{" else result &= indent & "{"
 		var num = n->numChildren
 		if num > 0 then
 			result &= newline & indent
@@ -717,7 +749,7 @@ function fbJSON_Print( byval n as fbJSON ptr, byval level as integer, byval useI
 		result &= indent & "}"
 
 	case JSON_Array
-		if len( n->jName ) > 0 then result &= indent & chr(34) & n->jName & chr(34) & ":[" else result &= indent & "["
+		if n->identifier.length() > 0 then result &= indent & chr(34) & n->identifier & chr(34) & ":[" else result &= indent & "["
 		var num = n->numChildren
 		if num > 0 then
 			result &= newline
@@ -736,28 +768,28 @@ function fbJSON_Print( byval n as fbJSON ptr, byval level as integer, byval useI
 		if n->parent->getType() = JSON_Array then
 			result &= indent & chr(34) & useStr & chr(34)
 		else
-			result &= indent & chr(34) & n->jName & chr(34) & ":" & chr(34) & useStr & chr(34)
+			result &= indent & chr(34) & n->identifier & chr(34) & ":" & chr(34) & useStr & chr(34)
 		end if
 
 	case JSON_True, JSON_False
 		if n->parent->getType() = JSON_Array then
 			result &= n->toBoolStr()
 		else
-			result &= indent & chr(34) & n->jName & chr(34) & ":" & n->toBoolStr()
+			result &= indent & chr(34) & n->identifier & chr(34) & ":" & n->toBoolStr()
 		end if
 
 	case JSON_Null
 		if n->parent->getType() = JSON_Array then
 			result &= indent & "null"
 		else
-			result &= indent & chr(34) & n->jName & chr(34) & ":" & "null"
+			result &= indent & chr(34) & n->identifier & chr(34) & ":" & "null"
 		end if
 
 	case JSON_Number
 		if n->parent->getType() = JSON_Array then
 			result &= n->toNumber()
 		else
-			result &= indent & chr(34) & n->jName & chr(34) & ":" & n->toNumber()
+			result &= indent & chr(34) & n->identifier & chr(34) & ":" & n->toNumber()
 		end if
 	end select
 	'if (level > 0 ) then result &= newline
@@ -812,9 +844,9 @@ function fbJSON_ImportString( byref jsonString as UTF8String ) as fbJSON ptr
 	end if
 	
 	for i as integer = 1 to num
-		var lower = lcase( tokens(i).blockString )
+		var lower = type<UTF8String>( lcase( tokens(i).blockString ) ) '' TODO: Need a reliable way to lcase UTF8 characters
 		'? "Current token=`" & tokens(i).blockString & "`"
-		select case lower
+		select case lower.ascii()
 		case "{"
 			objectCount += 1
 			Dim node As fbJSON ptr = new fbJSON()
@@ -825,23 +857,11 @@ function fbJSON_ImportString( byref jsonString as UTF8String ) as fbJSON ptr
 			else
 				'? "(object) Current is set (probably an array)"
 				If ( tokens(i-1).blockString = ":" ) And ( current->getType() = JSON_Object ) Then
-					node->jName = tokens(i-2).blockString
-					If ( Left(node->jName, 1) = chr(34) ) And ( Right(node->jName, 1) = chr(34) ) Then node->jName = Mid( node->jName, 2, Len(node->jName)-2 )
+					node->identifier = tokens(i-2).blockString
+					If ( node->identifier.left(1) = chr(34) ) And ( node->identifier.right(1) = chr(34) ) Then node->identifier = node->identifier.mid( 2, node->identifier.length() - 2 )
 					'? " ^ Note: current is an object"
 				End If
 				current = current->appendChild( node )
-				/'if ( ( tokens(i-1).blockString = ":" ) And ( mid( tokens(i-2).blockString, 1, 1 ) = chr(34) ) ) Or _
-				   ( (instr( tokens(i-1).blockString, any "[," )>0) And current->getType() = JSON_Array ) then
-					if current->getType() = JSON_Array then
-						current = current->appendChild( new fbJSON( ) )
-					else
-						current = current->appendChild( new fbJSON( trim( tokens(i-2).blockString, chr(34) ) ) )
-					end if
-					current->asObject()
-				else
-					' Report some sort of error?
-					? "(object) Was this an error?"
-				end if'/
 			end if
 		case "["
 			arrayCount += 1
@@ -853,9 +873,9 @@ function fbJSON_ImportString( byref jsonString as UTF8String ) as fbJSON ptr
 			else
 				'? "(array) Current is set (probably an array)"
 				If ( tokens(i-1).blockString = ":" ) And ( current->getType() = JSON_Object ) Then
-					node->jName = tokens(i-2).blockString
+					node->identifier = tokens(i-2).blockString
 					' Strip quotes if they exist
-					If ( Left(node->jName, 1) = chr(34) ) And ( Right(node->jName, 1) = chr(34) ) Then node->jName = Mid( node->jName, 2, Len(node->jName)-2 )
+					If ( node->identifier.left(1) = chr(34) ) And ( node->identifier.right(1) = chr(34) ) Then node->identifier = node->identifier.mid( 2, node->identifier.length() - 2 )
 					'? " ^ Note: current is an object"
 				End If
 				current = current->appendChild( node )
@@ -870,26 +890,27 @@ function fbJSON_ImportString( byref jsonString as UTF8String ) as fbJSON ptr
 			if ( i > 2 ) then
 				dim node as fbJSON ptr = NULL
 				' Need more robust IF!!!
-				if ( current <> NULL ) And ( ( tokens(i-1).blockString = ":" ) And ( mid( tokens(i-2).blockString, 1, 1 ) = chr(34) ) Or ( ( current->getType() = JSON_Array ) And ( instr( tokens(i-1).blockString, any ",[" ) ) ) ) then
+				if ( current <> NULL ) And ( ( tokens(i-1).blockString = ":" ) And ( tokens(i-2).blockString.left(1) = chr(34) ) Or ( ( current->getType() = JSON_Array ) And ( tokens(i-1).blockString.instr_any( ",[" ) ) ) ) then
 					if lower = "true" then
-						node = current->appendChild( new fbJSON( trim( tokens(i-2).blockString, chr(34) ) ) )
+						node = current->appendChild( new fbJSON( ) )
 						node->asTrue()
+						node->identifier = tokens(i-2).blockString.trim( chr(34) )
 					elseif lower = "false" then
-						node = current->appendChild( new fbJSON( trim( tokens(i-2).blockString, chr(34) ) ) )
+						node = current->appendChild( new fbJSON( ) )
 						node->asFalse()
+						node->identifier = tokens(i-2).blockString.trim( chr(34) ) 
 					elseif lower = "null" then
-						node = current->appendChild( new fbJSON( trim( tokens(i-2).blockString, chr(34) ) ) )
+						node = current->appendChild( new fbJSON( ) )
 						node->asNull()
+						node->identifier = tokens(i-2).blockString.trim( chr(34) ) 
 					elseif mid( lower, 1, 1 ) = chr(34) then
-						node = current->appendChild( new fbJSON( trim( tokens(i-2).blockString, chr(34) ) ) )
-						node->asString( trim( tokens(i).blockString, chr(34) ) )
-					elseif instr( mid( lower, 1, 1 ), any "0123456789-+" ) then
-						if current->getType() = JSON_Array then
-							node = current->appendChild( new fbJSON( ) )
-						else
-							node = current->appendChild( new fbJSON( trim( tokens(i-2).blockString, chr(34) ) ) )
+						node = current->appendChild( new fbJSON( tokens(i).blockString.trim( chr(34) ) ) )
+						node->identifier = tokens(i-2).blockString.trim( chr(34) )
+					elseif lower.left(1).instr_any( "0123456789-+" ) then
+						node = current->appendChild( new fbJSON( cdbl( tokens(i).blockString.ascii() ) ) )
+						if current->getType() <> JSON_Array then
+							node->identifier = tokens(i-2).blockString.trim( chr(34) )
 						end if
-						node->asNumber( cdbl( tokens(i).blockString ) )
 					else
 						' Error?  Likely not.
 						print "== Not handled! =="
