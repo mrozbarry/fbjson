@@ -15,15 +15,18 @@ COMPILING
 ---------
 To compile the test, use:
 
-fbc test.bas fbJSON.bas -x unit-test.bas
+```bash
+$ fbc test.bas fbJSON.bas -x unit-test.bas
+```
 
 This should create an executabled called test (test.exe in windows) - run that.
 
 If you wanted to use fbJSON as a library, you could make it static easy by using:
 
-fbc fbJSON.bas -lib
-
-fbc yourProject.bas -lfbJSON
+````bash
+$ fbc fbJSON.bas -lib
+$ fbc yourProject.bas -lfbJSON
+````
 
 Todo
 ----
@@ -36,12 +39,10 @@ Notes
 This all started with a physics game I was developing and figured the easiest
 format for me to use for save states was json.  I searched the forums and found
 to my surprise that another person recently requested the FB community for a
-JSON interpreter, and KristopherWindsor posted his code.  I'm not one to try to
+JSON interpreter, and KristopherWindsor posted [his code](http://www.freebasic.net/forum/viewtopic.php?t=17279).  I'm not one to try to
 reinvent the wheel, but I needed some other features (like generating/saving
-json), and I don't really enjoy figuring out other people's code and trying to
-change it as much as I enjoy the challenge of doing something myself.
+json), and didn't like how his code was all tied into an include (which isn't bad in itself, I just prefer separating out header and source code).
 
 For more information, you can check out the [FreeBASIC forum thread](http://www.freebasic.net/forum/viewtopic.php?p=155994)
 
-Anyway, enjoy,
--Oz
+Enjoy!
