@@ -1,15 +1,18 @@
-=FreeBASIC JSON Parser=
+FreeBASIC JSON Parser
+======================
 "JSON is simple, so the interface should also be simple"
 
 Written by Oz (alex DOT barry AT gmail DOT com) - April 22, 2010, Updated May 21, 2013
 
-=== Licensing ===
+Licensing
+---------
 This is MIT licensed.  Basically, you are free to submit patches to me/anyone who
 wants to help develop, and you're free to use or share it, as long as the license
 is still attached to it in one way or another.  See LICENSE, fbJSON.bi, or
 fbJSON.bas for more information.
 
-=== COMPILING ===
+COMPILING
+---------
 To compile the test, use:
 
 fbc test.bas fbJSON.bas -x unit-test.bas
@@ -22,12 +25,14 @@ fbc fbJSON.bas -lib
 
 fbc yourProject.bas -lfbJSON
 
-=== Todo ===
+Todo
+----
  * Polish the UTF8String and UTF8Char UDT/Classes.
  * Make the outputted formatting a little prettier
  * Give some meaningful output for errors
  
-=== Notes ===
+Notes
+----
 This all started with a physics game I was developing and figured the easiest
 format for me to use for save states was json.  I searched the forums and found
 to my surprise that another person recently requested the FB community for a
